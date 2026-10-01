@@ -8,8 +8,6 @@ JavaScript instead of PHP for all logic. It will look and behave the same, but:
 - Data lives only in one browser, on one device — it is not shared or backed up.
 - There is no real server-side authentication or validation.
 
-If this needs to satisfy the assignment requirements, use the PHP + MySQL version instead.
-This version is best for a quick prototype/demo or for learning front-end fundamentals.
 
 ## How to run it
 No server needed — just open `index.html` in a browser (double-click it, or right-click →
