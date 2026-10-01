@@ -1,14 +1,5 @@
 # Online Event Registration System (HTML + CSS + JavaScript only)
 
-⚠️ **Important:** the original assignment spec requires HTML, CSS, JavaScript, **PHP, and
-MySQL** ("students must use all five tools"). This version has **no server and no real
-database** — it uses the browser's `localStorage` as a stand-in "database" and plain
-JavaScript instead of PHP for all logic. It will look and behave the same, but:
-- Anyone can open dev tools and read/edit "users", "events", and passwords directly.
-- Data lives only in one browser, on one device — it is not shared or backed up.
-- There is no real server-side authentication or validation.
-
-
 ## How to run it
 No server needed — just open `index.html` in a browser (double-click it, or right-click →
 Open with → your browser). Everything runs client-side.
