@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events | Online Event Registration System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main>
+        <section class="container">
+            <h1>Available Events</h1>
+            <div id="formAlert"></div>
+            <div class="event-grid" id="eventGrid"></div>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav.js"></script>
+    <script>
+        requireLogin();
+        const session = Session.get();
+
+        function renderEvents() {
+            const events = [...Events.all()].sort((a, b) => a.date.localeCompare(b.date));
+            const grid = document.getElementById('eventGrid');
+
+            grid.innerHTML = events.map(ev => {
+                const taken = Registrations.countRegistered(ev.id);
+                const myReg = Registrations.findByUserAndEvent(session.userId, ev.id);
+                const isRegistered = myReg && myReg.status === 'registered';
+                const isFull = taken >= ev.capacity;
+
+                return `
+                    <div class="event-card">
+                        <h3>${escapeHtml(ev.title)}</h3>
+                        <p class="event-meta">
+                            📅 ${new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} &nbsp;|&nbsp;
+                            📍 ${escapeHtml(ev.location)}
+                        </p>
+                        <p>${escapeHtml(ev.description)}</p>
+                        <p class="event-meta">${taken} / ${ev.capacity} registered</p>
+                        ${isRegistered
+                            ? `<span class="badge badge-success">✔ You're registered</span>`
+                            : isFull
+                                ? `<span class="badge">Fully booked</span>`
+                                : `<button class="btn btn-primary btn-small" data-event-id="${ev.id}">Register</button>`
+                        }
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('button[data-event-id]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const eventId = Number(btn.dataset.eventId);
+                    const event = Events.findById(eventId);
+                    const taken = Registrations.countRegistered(eventId);
+
+                    if (taken >= event.capacity) {
+                        showAlert('Sorry, this event is fully booked.', 'error');
+                        return;
+                    }
+                    Registrations.register(session.userId, eventId);
+                    showAlert("You're registered! See it under 'My Registrations'.", 'success');
+                    renderEvents();
+                });
+            });
+        }
+
+        function showAlert(message, type) {
+            document.getElementById('formAlert').innerHTML =
+                `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+        }
+
+        renderEvents();
+    </script>
+</body>
+</html>

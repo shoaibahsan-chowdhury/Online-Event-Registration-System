@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home | Online Event Registration System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>Online Event Registration System</h1>
+                <p>Discover events, register in a click, and manage your attendance all in one place.</p>
+                <div id="heroButtons"></div>
+            </div>
+        </section>
+
+        <section class="container">
+            <h2>Upcoming Events</h2>
+            <div class="event-grid" id="upcomingEvents"></div>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav.js"></script>
+    <script>
+        // Hero buttons change depending on login state
+        const heroButtons = document.getElementById('heroButtons');
+        if (isLoggedIn()) {
+            heroButtons.innerHTML = `<a href="events.html" class="btn btn-primary">Browse Events</a>`;
+        } else {
+            heroButtons.innerHTML = `
+                <a href="register.html" class="btn btn-primary">Get Started</a>
+                <a href="login.html" class="btn btn-outline">Login</a>
+            `;
+        }
+
+        // Show up to 3 upcoming events
+        const today = new Date().toISOString().slice(0, 10);
+        const upcoming = Events.all()
+            .filter(e => e.date >= today)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 3);
+
+        const grid = document.getElementById('upcomingEvents');
+        if (upcoming.length === 0) {
+            grid.innerHTML = '<p>No upcoming events right now. Check back soon!</p>';
+        } else {
+            grid.innerHTML = upcoming.map(ev => `
+                <div class="event-card">
+                    <h3>${escapeHtml(ev.title)}</h3>
+                    <p class="event-meta">📅 ${new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} &nbsp;|&nbsp; 📍 ${escapeHtml(ev.location)}</p>
+                    <p>${escapeHtml(ev.description.slice(0, 100))}${ev.description.length > 100 ? '...' : ''}</p>
+                    <a href="events.html" class="btn btn-small btn-primary">View details</a>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

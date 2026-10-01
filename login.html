@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Online Event Registration System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="site-header"></div>
+
+    <main>
+        <section class="container form-page">
+            <h1>Login</h1>
+
+            <form id="loginForm" class="app-form" novalidate>
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required>
+
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+
+                <span class="field-error" id="loginError"></span>
+
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+            <div id="sessionNotice"></div>
+            <p class="event-meta">Demo admin login: <strong>admin@example.com</strong> / <strong>admin123</strong></p>
+            <p>Don't have an account? <a href="register.html">Sign up here</a>.</p>
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav.js"></script>
+    <script>
+        if (isLoggedIn()) window.location.href = 'index.html';
+
+        if (new URLSearchParams(window.location.search).get('expired') === '1') {
+            document.getElementById('sessionNotice').innerHTML =
+                '<div class="alert alert-error">Your session expired due to inactivity. Please log in again.</div>';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const errorSpan = document.getElementById('loginError');
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password === '') {
+                errorSpan.textContent = 'Please enter a valid email and password.';
+                return;
+            }
+
+            const user = Users.findByEmail(email);
+            if (!user || user.password !== password) {
+                errorSpan.textContent = 'Invalid email or password.';
+                return;
+            }
+
+            errorSpan.textContent = '';
+            Session.set(user);
+            window.location.href = user.role === 'admin' ? 'admin.html' : 'events.html';
+        });
+    </script>
+</body>
+
+</html>

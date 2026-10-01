@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | Online Event Registration System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="site-header"></div>
+
+    <main>
+        <section class="container">
+
+            <!-- ===== Dashboard view (event list) ===== -->
+            <div id="dashboardView">
+                <div class="admin-header">
+                    <h1>Admin Panel</h1>
+                    <button class="btn btn-primary" id="showAddForm">+ Add New Event</button>
+                </div>
+                <div id="formAlert"></div>
+                <div class="admin-tabs">
+                    <a href="#" class="admin-tab active" id="tabEvents">All Events</a>
+                    <a href="#" class="admin-tab" id="tabRegistrations">All Registrations</a>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Title</th><th>Date</th><th>Location</th><th>Capacity</th><th>Registered</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="eventsTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- ===== All Registrations view (every registration, every event) ===== -->
+            <div id="allRegistrationsView" class="hidden">
+                <div class="admin-header">
+                    <h1>Admin Panel</h1>
+                    <button class="btn btn-primary" id="showAddForm2">+ Add New Event</button>
+                </div>
+                <div class="admin-tabs">
+                    <a href="#" class="admin-tab" id="tabEvents2">All Events</a>
+                    <a href="#" class="admin-tab active" id="tabRegistrations2">All Registrations</a>
+                </div>
+                <p class="event-meta" id="allRegistrationsCount"></p>
+                <div id="allRegistrationsTableWrap"></div>
+            </div>
+
+            <!-- ===== Add / Edit event form (hidden by default) ===== -->
+            <div id="eventFormView" class="hidden form-page" style="max-width:520px;">
+                <h1 id="eventFormTitle">Add New Event</h1>
+                <form id="eventForm" class="app-form">
+                    <input type="hidden" id="eventId">
+
+                    <label for="title">Event Title</label>
+                    <input type="text" id="title" required>
+
+                    <label for="description">Description</label>
+                    <textarea id="description" rows="4"></textarea>
+
+                    <label for="event_date">Event Date</label>
+                    <input type="date" id="event_date" required>
+
+                    <label for="location">Location</label>
+                    <input type="text" id="location" required>
+
+                    <label for="capacity">Capacity</label>
+                    <input type="number" id="capacity" min="1" value="50" required>
+
+                    <span class="field-error" id="eventFormError"></span>
+
+                    <button type="submit" class="btn btn-primary" id="eventFormSubmit">Create Event</button>
+                    <button type="button" class="btn btn-outline" id="eventFormCancel">Cancel</button>
+                </form>
+            </div>
+
+            <!-- ===== Participants view (hidden by default) ===== -->
+            <div id="participantsView" class="hidden">
+                <a href="#" id="backToDashboard">&larr; Back to Dashboard</a>
+                <h1 id="participantsTitle">Participants</h1>
+                <p class="event-meta" id="participantsCount"></p>
+                <div id="participantsTableWrap"></div>
+            </div>
+
+        </section>
+    </main>
+
+    <div id="site-footer"></div>
+
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav.js"></script>
+    <script>
+        requireLogin();
+        requireAdmin();
+
+        const dashboardView = document.getElementById('dashboardView');
+        const eventFormView = document.getElementById('eventFormView');
+        const participantsView = document.getElementById('participantsView');
+        const allRegistrationsView = document.getElementById('allRegistrationsView');
+
+        function showOnly(view) {
+            [dashboardView, eventFormView, participantsView, allRegistrationsView].forEach(v => v.classList.add('hidden'));
+            view.classList.remove('hidden');
+        }
+
+        // ---------- Tab switching ----------
+        document.getElementById('tabEvents').addEventListener('click', (e) => { e.preventDefault(); showOnly(dashboardView); });
+        document.getElementById('tabEvents2').addEventListener('click', (e) => { e.preventDefault(); showOnly(dashboardView); });
+        document.getElementById('tabRegistrations').addEventListener('click', (e) => { e.preventDefault(); renderAllRegistrations(); showOnly(allRegistrationsView); });
+        document.getElementById('tabRegistrations2').addEventListener('click', (e) => { e.preventDefault(); renderAllRegistrations(); showOnly(allRegistrationsView); });
+        document.getElementById('showAddForm2').addEventListener('click', () => openAddForm());
+
+        // ---------- All Registrations: every registration across every event ----------
+        function renderAllRegistrations() {
+            const regs = Registrations.all()
+                .filter(r => r.status === 'registered')
+                .map(r => ({ ...r, user: Users.findById(r.userId), event: Events.findById(r.eventId) }))
+                .filter(r => r.user && r.event)
+                .sort((a, b) => b.registeredAt.localeCompare(a.registeredAt));
+
+            document.getElementById('allRegistrationsCount').textContent = `${regs.length} total registration(s)`;
+
+            const wrap = document.getElementById('allRegistrationsTableWrap');
+            if (regs.length === 0) {
+                wrap.innerHTML = '<p>No registrations yet.</p>';
+                return;
+            }
+            wrap.innerHTML = `
+                <table class="data-table">
+                    <thead><tr><th>Event</th><th>Participant</th><th>Email</th><th>Registered On</th></tr></thead>
+                    <tbody>
+                        ${regs.map(r => `
+                            <tr>
+                                <td>${escapeHtml(r.event.title)}</td>
+                                <td>${escapeHtml(r.user.name)}</td>
+                                <td>${escapeHtml(r.user.email)}</td>
+                                <td>${new Date(r.registeredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // ---------- Dashboard: render event table ----------
+        function renderDashboard() {
+            const events = [...Events.all()].sort((a, b) => a.date.localeCompare(b.date));
+            document.getElementById('eventsTableBody').innerHTML = events.map(ev => {
+                const count = Registrations.countRegistered(ev.id);
+                return `
+                    <tr>
+                        <td>${escapeHtml(ev.title)}</td>
+                        <td>${new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td>${escapeHtml(ev.location)}</td>
+                        <td>${ev.capacity}</td>
+                        <td><a href="#" data-participants-id="${ev.id}">${count} participant(s)</a></td>
+                        <td class="action-cell">
+                            <button class="btn btn-small btn-outline" data-edit-id="${ev.id}">Edit</button>
+                            <button class="btn btn-small btn-danger" data-delete-id="${ev.id}">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.querySelectorAll('[data-edit-id]').forEach(btn =>
+                btn.addEventListener('click', () => openEditForm(Number(btn.dataset.editId))));
+            document.querySelectorAll('[data-delete-id]').forEach(btn =>
+                btn.addEventListener('click', () => deleteEvent(Number(btn.dataset.deleteId))));
+            document.querySelectorAll('[data-participants-id]').forEach(link =>
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openParticipants(Number(link.dataset.participantsId));
+                }));
+        }
+
+        function deleteEvent(id) {
+            if (!confirm('Delete this event? This cannot be undone.')) return;
+            Events.remove(id);
+            document.getElementById('formAlert').innerHTML = `<div class="alert alert-success">Event deleted.</div>`;
+            renderDashboard();
+        }
+
+        // ---------- Add / Edit form ----------
+        document.getElementById('showAddForm').addEventListener('click', () => openAddForm());
+        document.getElementById('eventFormCancel').addEventListener('click', () => { showOnly(dashboardView); });
+
+        function openAddForm() {
+            document.getElementById('eventFormTitle').textContent = 'Add New Event';
+            document.getElementById('eventFormSubmit').textContent = 'Create Event';
+            document.getElementById('eventId').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('event_date').value = '';
+            document.getElementById('location').value = '';
+            document.getElementById('capacity').value = 50;
+            document.getElementById('eventFormError').textContent = '';
+            showOnly(eventFormView);
+        }
+
+        function openEditForm(id) {
+            const ev = Events.findById(id);
+            if (!ev) return;
+            document.getElementById('eventFormTitle').textContent = 'Edit Event';
+            document.getElementById('eventFormSubmit').textContent = 'Save Changes';
+            document.getElementById('eventId').value = ev.id;
+            document.getElementById('title').value = ev.title;
+            document.getElementById('description').value = ev.description;
+            document.getElementById('event_date').value = ev.date;
+            document.getElementById('location').value = ev.location;
+            document.getElementById('capacity').value = ev.capacity;
+            document.getElementById('eventFormError').textContent = '';
+            showOnly(eventFormView);
+        }
+
+        document.getElementById('eventForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('eventId').value;
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const date = document.getElementById('event_date').value;
+            const location = document.getElementById('location').value.trim();
+            const capacity = Number(document.getElementById('capacity').value);
+            const errorSpan = document.getElementById('eventFormError');
+
+            if (!title || !date || !location || capacity <= 0) {
+                errorSpan.textContent = 'Please fill in all fields with a valid capacity.';
+                return;
+            }
+            errorSpan.textContent = '';
+
+            if (id) {
+                Events.update(Number(id), { title, description, date, location, capacity });
+            } else {
+                Events.create({ title, description, date, location, capacity });
+            }
+            showOnly(dashboardView);
+            renderDashboard();
+        });
+
+        // ---------- Participants view ----------
+        function openParticipants(eventId) {
+            const ev = Events.findById(eventId);
+            if (!ev) return;
+
+            const regs = Registrations.forEvent(eventId)
+                .map(r => ({ ...r, user: Users.findById(r.userId) }))
+                .filter(r => r.user)
+                .sort((a, b) => a.registeredAt.localeCompare(b.registeredAt));
+
+            document.getElementById('participantsTitle').textContent = `Participants — ${ev.title}`;
+            document.getElementById('participantsCount').textContent = `${regs.length} / ${ev.capacity} registered`;
+
+            const wrap = document.getElementById('participantsTableWrap');
+            if (regs.length === 0) {
+                wrap.innerHTML = '<p>No one has registered for this event yet.</p>';
+            } else {
+                wrap.innerHTML = `
+                    <table class="data-table">
+                        <thead><tr><th>Name</th><th>Email</th><th>Registered On</th></tr></thead>
+                        <tbody>
+                            ${regs.map(r => `
+                                <tr>
+                                    <td>${escapeHtml(r.user.name)}</td>
+                                    <td>${escapeHtml(r.user.email)}</td>
+                                    <td>${new Date(r.registeredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            showOnly(participantsView);
+        }
+
+        document.getElementById('backToDashboard').addEventListener('click', (e) => {
+            e.preventDefault();
+            showOnly(dashboardView);
+        });
+
+        renderDashboard();
+    </script>
+</body>
+</html>
